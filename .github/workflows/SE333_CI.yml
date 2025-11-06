@@ -10,18 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Show workspace layout (debug)
+      # Debug: show layout
+      - name: Show workspace layout
         run: |
           echo "Workspace: ${{ github.workspace }}"
-          pwd
-          echo "---- first two levels ----"
-          find . -maxdepth 2 -type d -print
-          echo "---- looking for pom.xml ----"
-          find . -maxdepth 4 -name pom.xml -print
+          ls -R
 
+      # Set up Java
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -30,59 +29,40 @@ jobs:
           architecture: x64
           cache: maven
 
-      # -----------------------------------------------------
-      # Build & Test (Maven verify)
-      # -----------------------------------------------------
+      # Build and test
       - name: Build & Test (Maven verify)
-        run: |
-          POM=$(find . -maxdepth 4 -path "*/Assignment5_Code/pom.xml" -print -quit)
-          if [ -z "$POM" ]; then
-            echo "Could not find Assignment5_Code/pom.xml"
-            exit 1
-          fi
-          echo " Using POM: $POM"
-          mvn -B -DskipTests=false -f "$POM" clean verify
+        working-directory: Assignment5_Code
+        run: mvn -B clean verify
 
-      # -----------------------------------------------------
       # Run Checkstyle
-      # -----------------------------------------------------
       - name: Run Checkstyle
-        run: |
-          POM=$(find . -maxdepth 4 -path "*/Assignment5_Code/pom.xml" -print -quit)
-          mvn -B -f "$POM" checkstyle:checkstyle
+        working-directory: Assignment5_Code
+        run: mvn -B checkstyle:checkstyle
 
-      # -----------------------------------------------------
       # Upload Checkstyle Result
-      # -----------------------------------------------------
       - name: Upload Checkstyle Result
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: checkstyle-result.xml
-          path: |
-            **/Assignment5_Code/target/checkstyle-result.xml
+          path: Assignment5_Code/target/checkstyle-result.xml
           if-no-files-found: warn
 
-      # -----------------------------------------------------
-      # Run JaCoCo and upload coverage report
-      # -----------------------------------------------------
+      # Run JaCoCo Report
       - name: Run JaCoCo Report
-        run: |
-          POM=$(find . -maxdepth 4 -path "*/Assignment5_Code/pom.xml" -print -quit)
-          mvn -B -f "$POM" jacoco:report
+        working-directory: Assignment5_Code
+        run: mvn -B jacoco:report
 
+      # Upload JaCoCo Report
       - name: Upload JaCoCo XML
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: jacoco.xml
-          path: |
-            **/Assignment5_Code/target/site/jacoco/jacoco.xml
+          path: Assignment5_Code/target/site/jacoco/jacoco.xml
           if-no-files-found: warn
 
-      # -----------------------------------------------------
-      # Post job cleanup
-      # -----------------------------------------------------
-      - name: Post Checkout repository
+      # Cleanup
+      - name: Post job cleanup
         if: always()
         run: echo "✅ Build completed (success or failure)."
