@@ -2,8 +2,7 @@ name: SE333_CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
   SE333_CI_JOB:
@@ -15,46 +14,33 @@ jobs:
 
       - name: Show workspace layout (debug)
         run: |
-          echo "Workspace: ${{ github.workspace }}"
+          echo "workspace: ${{ github.workspace }}"
           pwd
+          ls -la
           echo "---- first two levels ----"
           find . -maxdepth 2 -type d -print
-          echo "---- looking for pom.xml ----"
+          echo "---- look for pom.xml ----"
           find . -maxdepth 4 -name pom.xml -print
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: '23'
-          distribution: 'temurin'
-          architecture: x64
           cache: maven
 
-      # -----------------------------------------------------
-      # Build & Test (Maven verify)
-      # -----------------------------------------------------
+      # Build without assuming any hard-coded path
       - name: Build & Test (Maven verify)
         run: |
           POM=$(find . -maxdepth 4 -path "*/Assignment5_Code/pom.xml" -print -quit)
           if [ -z "$POM" ]; then
-            echo " Could not find Assignment5_Code/pom.xml"
+            echo "Could not find Assignment5_Code/pom.xml"
             exit 1
           fi
-          echo " Using POM: $POM"
+          echo "Using POM: $POM"
           mvn -B -DskipTests=false -f "$POM" clean verify
 
-      # -----------------------------------------------------
-      # Run Checkstyle
-      # -----------------------------------------------------
-      - name: Run Checkstyle
-        run: |
-          POM=$(find . -maxdepth 4 -path "*/Assignment5_Code/pom.xml" -print -quit)
-          mvn -B -f "$POM" checkstyle:checkstyle
-
-      # -----------------------------------------------------
-      # Upload Checkstyle Result
-      # -----------------------------------------------------
-      - name: Upload Checkstyle Result
+      - name: Upload Checkstyle report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -62,14 +48,6 @@ jobs:
           path: |
             **/Assignment5_Code/target/checkstyle-result.xml
           if-no-files-found: warn
-
-      # -----------------------------------------------------
-      # Run JaCoCo and upload coverage report
-      # -----------------------------------------------------
-      - name: Run JaCoCo Report
-        run: |
-          POM=$(find . -maxdepth 4 -path "*/Assignment5_Code/pom.xml" -print -quit)
-          mvn -B -f "$POM" jacoco:report
 
       - name: Upload JaCoCo XML
         if: always()
@@ -79,10 +57,3 @@ jobs:
           path: |
             **/Assignment5_Code/target/site/jacoco/jacoco.xml
           if-no-files-found: warn
-
-      # -----------------------------------------------------
-      # Post job cleanup
-      # -----------------------------------------------------
-      - name: Post Checkout repository
-        if: always()
-        run: echo " Build completed (success or failure)."
