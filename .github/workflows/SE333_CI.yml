@@ -10,15 +10,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repository
+      # Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Debug: show layout
+      # Debugging: show layout
       - name: Show workspace layout
         run: |
-          echo "Workspace: ${{ github.workspace }}"
-          ls -R
+          echo "Workspace is ${{ github.workspace }}"
+          find . -maxdepth 3 -type f -name "pom.xml"
 
       # Set up Java
       - name: Set up Java
@@ -29,15 +29,18 @@ jobs:
           architecture: x64
           cache: maven
 
-      # Build and test
+      # Build and Test (auto-find pom.xml)
       - name: Build & Test (Maven verify)
-        working-directory: Assignment5_Code
-        run: mvn -B clean verify
+        run: |
+          POM=$(find . -maxdepth 3 -name "pom.xml" | head -n 1)
+          echo "Found POM at: $POM"
+          mvn -B -f "$POM" clean verify
 
       # Run Checkstyle
       - name: Run Checkstyle
-        working-directory: Assignment5_Code
-        run: mvn -B checkstyle:checkstyle
+        run: |
+          POM=$(find . -maxdepth 3 -name "pom.xml" | head -n 1)
+          mvn -B -f "$POM" checkstyle:checkstyle
 
       # Upload Checkstyle Result
       - name: Upload Checkstyle Result
@@ -45,21 +48,22 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: checkstyle-result.xml
-          path: Assignment5_Code/target/checkstyle-result.xml
+          path: "**/target/checkstyle-result.xml"
           if-no-files-found: warn
 
-      # Run JaCoCo Report
+      # Run JaCoCo
       - name: Run JaCoCo Report
-        working-directory: Assignment5_Code
-        run: mvn -B jacoco:report
+        run: |
+          POM=$(find . -maxdepth 3 -name "pom.xml" | head -n 1)
+          mvn -B -f "$POM" jacoco:report
 
-      # Upload JaCoCo Report
+      # Upload JaCoCo XML
       - name: Upload JaCoCo XML
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: jacoco.xml
-          path: Assignment5_Code/target/site/jacoco/jacoco.xml
+          path: "**/target/site/jacoco/jacoco.xml"
           if-no-files-found: warn
 
       # Cleanup
